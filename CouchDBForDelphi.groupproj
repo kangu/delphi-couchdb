@@ -1,0 +1,48 @@
+﻿	<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+		<PropertyGroup>
+			<ProjectGuid>{8D723169-046E-45BE-8C7E-B32B260905AD}</ProjectGuid>
+		</PropertyGroup>
+		<ItemGroup>
+			<Projects Include="Delphi_CouchDB.dproj">
+				<Dependencies/>
+			</Projects>
+			<Projects Include="Test\Delphi_CouchDBTests.dproj">
+				<Dependencies/>
+			</Projects>
+		</ItemGroup>
+		<ProjectExtensions>
+			<Borland.Personality>Default.Personality.12</Borland.Personality>
+			<Borland.ProjectType/>
+			<BorlandProject>
+				<Default.Personality/>
+			</BorlandProject>
+		</ProjectExtensions>
+		<Target Name="Delphi_CouchDB">
+			<MSBuild Projects="Delphi_CouchDB.dproj"/>
+		</Target>
+		<Target Name="Delphi_CouchDB:Clean">
+			<MSBuild Projects="Delphi_CouchDB.dproj" Targets="Clean"/>
+		</Target>
+		<Target Name="Delphi_CouchDB:Make">
+			<MSBuild Projects="Delphi_CouchDB.dproj" Targets="Make"/>
+		</Target>
+		<Target Name="Delphi_CouchDBTests">
+			<MSBuild Projects="Test\Delphi_CouchDBTests.dproj"/>
+		</Target>
+		<Target Name="Delphi_CouchDBTests:Clean">
+			<MSBuild Projects="Test\Delphi_CouchDBTests.dproj" Targets="Clean"/>
+		</Target>
+		<Target Name="Delphi_CouchDBTests:Make">
+			<MSBuild Projects="Test\Delphi_CouchDBTests.dproj" Targets="Make"/>
+		</Target>
+		<Target Name="Build">
+			<CallTarget Targets="Delphi_CouchDB;Delphi_CouchDBTests"/>
+		</Target>
+		<Target Name="Clean">
+			<CallTarget Targets="Delphi_CouchDB:Clean;Delphi_CouchDBTests:Clean"/>
+		</Target>
+		<Target Name="Make">
+			<CallTarget Targets="Delphi_CouchDB:Make;Delphi_CouchDBTests:Make"/>
+		</Target>
+		<Import Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')" Project="$(BDS)\Bin\CodeGear.Group.Targets"/>
+	</Project>
