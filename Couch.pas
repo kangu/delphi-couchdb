@@ -92,7 +92,7 @@ begin
 
   // initialize bulk insert feature
   iUseBulkInserts := false;
-  bulkSize := 100;
+  bulkSize := 2000; // seems to be the ideal size for a set of empty documents
   FbulkCount := 0;
   // each pair of dbname -> data will be synced by using the stringlist id
   FbulkDBNames := TStringList.Create;
@@ -311,6 +311,8 @@ begin
 
     // if bulk insert is set, document is routed to the internal storage
     if iUseBulkInserts then begin
+      if doc._id = '' then
+        post.Delete('_id');
       AppendToBulk(databaseName, post.AsString);
     end else begin
       // go ahead and run http request

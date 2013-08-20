@@ -32,6 +32,8 @@ type
     procedure TestFlushBulk;
     procedure TestFlushBulkManyDBs;
     procedure TestGetDocument;
+    procedure TestManyInsertsWithIds;
+    procedure TestManyInsertsWithoutIds;
     function TestSaveDocument: string;
   end;
 
@@ -48,6 +50,7 @@ end;
 procedure TestTCouchDB.TearDown;
 begin
   FCouchDB.DeleteDatabase('test');
+  FCouchDB.DeleteDatabase('test-another');
   FCouchDB.Free;
   FCouchDB := nil;
   Fctx.Free;
@@ -90,8 +93,6 @@ begin
   ReturnValue := FCouchDB.CreateDatabase('test-another');
   Assert(ReturnValue = true, 'Failed to create database');
 
-  // just cleanup here
-  FCouchDB.DeleteDatabase('test-another');
 end;
 
 procedure TestTCouchDB.TestDeleteDatabase;
@@ -172,6 +173,30 @@ begin
   // return value after exception is garbage
 //  json := Fctx.AsJson<TCouchDBDocument>(ReturnValue);
   Assert(testPass = true, 'Call to non existent document should return nil');
+end;
+
+procedure TestTCouchDB.TestManyInsertsWithIds;
+var
+  i: Integer;
+begin
+  FCouchDB.useBulkInserts := true;
+  FCouchDB.bulkSize := 2000;
+  for i := 1 to FCouchDB.bulkSize do
+    FCouchDB.SaveDocument<TCouchDBDocument>(TCouchDBDocument.CreateNew('id-' + IntToStr(i)), 'test');
+
+  Assert(true = true, 'Test only measures execution time');
+end;
+
+procedure TestTCouchDB.TestManyInsertsWithoutIds;
+var
+  i: Integer;
+begin
+  FCouchDB.useBulkInserts := true;
+  FCouchDB.bulkSize := 2000;
+  for i := 1 to FCouchDB.bulkSize do
+    FCouchDB.SaveDocument<TCouchDBDocument>(TCouchDBDocument.CreateNew, 'test');
+
+  Assert(true = true, 'Test only measures execution time');
 end;
 
 function TestTCouchDB.TestSaveDocument: string;
