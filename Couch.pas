@@ -31,6 +31,10 @@ type
     iUseBulkInserts: Boolean;
     FbulkDBNames: TStringList;
     FbulkData: TStringList;
+    FbulkSize: Integer;
+    // keeps track of the number of documents in the bulk queue
+    // independent of target database
+    FbulkCount: integer;
     http: TIdHTTP;
     serverURL: string;
 
@@ -49,6 +53,8 @@ type
     destructor Destroy; override;
     function CreateDatabase(databaseName: string): Boolean;
     function DeleteDatabase(databaseName: string): Boolean;
+
+    // flushes all database queues to couch
     function FlushBulk: Boolean;
 
     // String, String -> TCouchDBDocument
@@ -64,6 +70,7 @@ type
     function SaveDocument<T: TCouchDBDocument>(doc: T; databaseName: string):
         Boolean;
 
+    property bulkSize: Integer read FbulkSize write FbulkSize;
     // allow component to cache insert requests grouped by database name
     // documents are flushed to the database by using FlushBulk
     property useBulkInserts: Boolean read iUseBulkInserts write iUseBulkInserts;
@@ -85,6 +92,8 @@ begin
 
   // initialize bulk insert feature
   iUseBulkInserts := false;
+  bulkSize := 100;
+  FbulkCount := 0;
   // each pair of dbname -> data will be synced by using the stringlist id
   FbulkDBNames := TStringList.Create;
   FbulkData := TStringList.Create;
@@ -114,6 +123,11 @@ begin
     FbulkData[index] := document
   else
     FbulkData[index] := FbulkData[index] + ',' + document;
+
+  Inc(FbulkCount);
+  if FbulkCount >= FbulkSize then begin
+    FlushBulk;
+  end;
 end;
 
 function TCouchDB.CreateDatabase(databaseName: string): Boolean;
@@ -145,10 +159,16 @@ begin
   for i := 0 to FbulkDBNames.Count - 1 do begin
     serverReply := MakeServerRequest(rmPost, FbulkDBNames[i] + '/_bulk_docs',
       Format('{"docs":[%s]}', [FbulkData[i]]));
-    Result := serverReply.B['ok'];
+
+    // TODO maybe should parse the results for errors?
+    // doesn't make sense for very large arrays 1000+
+    // would be nice to be optional
+    Result := serverReply.IsType(stArray);
   end;
   FbulkDBNames.Clear;
   FbulkData.Clear;
+
+  FbulkCount := 0;
 end;
 
 function TCouchDB.GetDocument<T>(databaseName, documentId: string): T;

@@ -54,8 +54,28 @@ begin
 end;
 
 procedure TestTCouchDB.TestAutoFlushBulk;
+var
+  ReturnValue: TCouchDBDocument;
 begin
-  Assert(true = false, 'Test missing');
+  FCouchDB.useBulkInserts := true;
+  FCouchDB.bulkSize := 2;
+
+  // save 2 documents
+  FCouchDB.SaveDocument<TCouchDBDocument>(
+    TCouchDBDocument.CreateNew('first'), 'test'
+  );
+  FCouchDB.SaveDocument<TCouchDBDocument>(
+    TCouchDBDocument.CreateNew('second'), 'test'
+  );
+
+  // expect the second one to be saved
+  ReturnValue := TCouchDBDocument.Create;
+  try
+    ReturnValue := FCouchDB.GetDocument<TCouchDBDocument>('test', 'second');
+  except
+    // ignore exception, it means the doc doesn't exist
+  end;
+  Assert(ReturnValue._id = 'second', 'Document not retrieved');
 end;
 
 procedure TestTCouchDB.TestCreateDatabase;
@@ -84,17 +104,14 @@ end;
 
 procedure TestTCouchDB.TestFlushBulk;
 var
-  doc1, doc2: TCouchDBDocument;
   hasPassed: boolean;
   ReturnValue: TCouchDBDocument;
 begin
   FCouchDB.useBulkInserts := true;
-  doc1 := TCouchDBDocument.CreateNew('first-document');
-  doc2 := TCouchDBDocument.CreateNew('second-document');
 
   // expect first save to do nothing
   hasPassed := false;
-  FCouchDB.SaveDocument<TCouchDBDocument>(doc1, 'test');
+  FCouchDB.SaveDocument<TCouchDBDocument>(TCouchDBDocument.CreateNew('first-document'), 'test');
   try
     FCouchDB.GetDocument<TCouchDBDocument>('test', 'first-document');
   except
@@ -111,13 +128,30 @@ begin
 end;
 
 procedure TestTCouchDB.TestFlushBulkManyDBs;
+var
+  ReturnValue: TCouchDBDocument;
 begin
-  Assert(true = false, 'Test missing');
+  FCouchDB.useBulkInserts := true;
+  FCouchDB.SaveDocument<TCouchDBDocument>(TCouchDBDocument.CreateNew('first'), 'test');
+
+  FCouchDB.CreateDatabase('test-another');
+  FCouchDB.SaveDocument<TCouchDBDocument>(TCouchDBDocument.CreateNew('still-first'), 'test-another');
+
+  FCouchDB.FlushBulk;
+
+  ReturnValue := TCouchDBDocument.Create;
+  try
+    ReturnValue := FCouchDB.GetDocument<TCouchDBDocument>('test', 'first');
+    Assert(ReturnValue._id = 'first', 'Document not saved in bulk');
+    ReturnValue := FCouchDB.GetDocument<TCouchDBDocument>('test-another', 'still-first');
+    Assert(ReturnValue._id = 'still-first', 'Document not saved in bulk');
+  except
+    // test should fail
+  end;
 end;
 
 procedure TestTCouchDB.TestGetDocument;
 var
-  ReturnValue: TCouchDBDocument;
   documentId: string;
   databaseName: string;
 //  json: ISuperObject;
@@ -143,15 +177,11 @@ end;
 function TestTCouchDB.TestSaveDocument: string;
 var
   ReturnValue: boolean;
-  doc: TCouchDBDocument;
 begin
   // expect empty document to be created
-  doc := TCouchDBDocument.CreateNew;
-  ReturnValue := FCouchDB.SaveDocument<TCouchDBDocument>(doc, 'test');
+  ReturnValue := FCouchDB.SaveDocument<TCouchDBDocument>(TCouchDBDocument.CreateNew, 'test');
 
   Assert(ReturnValue = true, 'Document save failed');
-  //
-  // TODO -cMM: TestTCouchDB.TestSaveDocument default body inserted
 end;
 
 initialization

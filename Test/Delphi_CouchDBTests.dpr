@@ -15,6 +15,11 @@ program Delphi_CouchDBTests;
 {$ENDIF}
 
 uses
+  madExcept,
+  madLinkDisAsm,
+  madListHardware,
+  madListProcesses,
+  madListModules,
   DUnitTestRunner,
   TestCouch in 'TestCouch.pas',
   Couch in '..\Couch.pas';
