@@ -143,6 +143,7 @@
 					<TestFramework>DUnit / Delphi Win32</TestFramework>
 					<TestRunner>GUI</TestRunner>
 					<SourceProjectName>X:\delphi\delphi_couchdb\Delphi_CouchDB.dproj</SourceProjectName>
+					<TestProjectName/>
 				</UnitTesting>
 			</BorlandProject>
 			<ProjectFileVersion>12</ProjectFileVersion>
