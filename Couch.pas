@@ -28,8 +28,18 @@ type
 
   TCouchDB = class(TObject)
   private
+    iUseBulkInserts: Boolean;
+    FbulkDBNames: TStringList;
+    FbulkData: TStringList;
     http: TIdHTTP;
     serverURL: string;
+
+    // String, String -> Boolean
+    // matches the saveDocument structure but adds to the document to the bulk queue
+    //
+    // expect new database entry created to return true
+    // expect existing database entry used to return false
+    function AppendToBulk(databaseName, document: string): Boolean;
     function MakeServerRequest(operation: THTTPRequestMethod; url: string;
         postData: string = ''): ISuperObject;
     function StreamToString(aStream: TStream): string;
@@ -39,6 +49,12 @@ type
     destructor Destroy; override;
     function CreateDatabase(databaseName: string): Boolean;
     function DeleteDatabase(databaseName: string): Boolean;
+    function FlushBulk: Boolean;
+
+    // String, String -> TCouchDBDocument
+    // retrieves given document id from database
+    //
+    // expect exception to be returned if document doesn't exist
     function GetDocument<T: TCouchDBDocument>(databaseName, documentId: string): T;
 
     // TCouchDBDocument -> Boolean
@@ -47,6 +63,11 @@ type
     // otherwise POST is used
     function SaveDocument<T: TCouchDBDocument>(doc: T; databaseName: string):
         Boolean;
+
+    // allow component to cache insert requests grouped by database name
+    // documents are flushed to the database by using FlushBulk
+    property useBulkInserts: Boolean read iUseBulkInserts write iUseBulkInserts;
+  published
   end;
 
 implementation
@@ -61,12 +82,38 @@ constructor TCouchDB.Create(serverAddress: string = '127.0.0.1'; serverPort:
 begin
   http := TIdHTTP.Create(nil);
   serverURL := Format('http://%s:%d/', [serverAddress, serverPort]);
+
+  // initialize bulk insert feature
+  iUseBulkInserts := false;
+  // each pair of dbname -> data will be synced by using the stringlist id
+  FbulkDBNames := TStringList.Create;
+  FbulkData := TStringList.Create;
 end;
 
 destructor TCouchDB.Destroy;
 begin
   http.Free;
+  FbulkDBNames.Free;
+  FbulkData.Free;
   inherited;
+end;
+
+function TCouchDB.AppendToBulk(databaseName, document: string): Boolean;
+var
+  index: integer;
+begin
+  index := FbulkDBNames.IndexOf(databaseName);
+  if index = -1 then begin
+    FbulkDBNames.Add(databaseName);
+    index := FbulkDBNames.Count - 1;
+
+    FbulkData.Add('');  // empty to start with
+  end;
+
+  if Length(FbulkData[index]) = 0 then
+    FbulkData[index] := document
+  else
+    FbulkData[index] := FbulkData[index] + ',' + document;
 end;
 
 function TCouchDB.CreateDatabase(databaseName: string): Boolean;
@@ -90,6 +137,20 @@ begin
     Result := json.B['ok'];
 end;
 
+function TCouchDB.FlushBulk: Boolean;
+var
+  i: integer;
+  serverReply: ISuperObject;
+begin
+  for i := 0 to FbulkDBNames.Count - 1 do begin
+    serverReply := MakeServerRequest(rmPost, FbulkDBNames[i] + '/_bulk_docs',
+      Format('{"docs":[%s]}', [FbulkData[i]]));
+    Result := serverReply.B['ok'];
+  end;
+  FbulkDBNames.Clear;
+  FbulkData.Clear;
+end;
+
 function TCouchDB.GetDocument<T>(databaseName, documentId: string): T;
 var
   ctx: TSuperRttiContext;
@@ -98,13 +159,13 @@ begin
   ctx := TSuperRttiContext.Create;
   try
     // make server request
-    serverReply := MakeServerRequest(rmGet, databaseName);
+    serverReply := MakeServerRequest(rmGet, databaseName + '/' + documentId);
 
     if serverReply.S['error'] <> '' then begin
       raise ECouchErrorDocNotFound.Create('Document not found');
     end;
 
-    Result := ctx.AsType<T>(SO(serverReply));
+    Result := ctx.AsType<T>(serverReply);
   finally
     ctx.Free;
   end;
@@ -228,17 +289,23 @@ begin
     if doc._rev = '' then
       post.Delete('_rev');
 
-    // remove _id attribute if empty
-    if doc._id = '' then begin
-      // and send to POST request
-      post.Delete('_id');
-      serverReply := MakeServerRequest(rmPost, databaseName, post.AsString);
+    // if bulk insert is set, document is routed to the internal storage
+    if iUseBulkInserts then begin
+      AppendToBulk(databaseName, post.AsString);
     end else begin
-      // id supplied, route to PUT
-      serverReply := MakeServerRequest(rmPut, databaseName, post.AsString);
-    end;
+      // go ahead and run http request
+      // remove _id attribute if empty
+      if doc._id = '' then begin
+        // and send to POST request
+        post.Delete('_id');
+        serverReply := MakeServerRequest(rmPost, databaseName, post.AsString);
+      end else begin
+        // id supplied, route to PUT
+        serverReply := MakeServerRequest(rmPut, databaseName, post.AsString);
+      end;
 
-    Result := serverReply.B['ok'];
+      Result := serverReply.B['ok'];
+    end;
 
 
     post := nil;

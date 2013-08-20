@@ -26,8 +26,11 @@ type
     procedure SetUp; override;
     procedure TearDown; override;
   published
+    procedure TestAutoFlushBulk;
     procedure TestCreateDatabase;
     procedure TestDeleteDatabase;
+    procedure TestFlushBulk;
+    procedure TestFlushBulkManyDBs;
     procedure TestGetDocument;
     function TestSaveDocument: string;
   end;
@@ -48,6 +51,11 @@ begin
   FCouchDB.Free;
   FCouchDB := nil;
   Fctx.Free;
+end;
+
+procedure TestTCouchDB.TestAutoFlushBulk;
+begin
+  Assert(true = false, 'Test missing');
 end;
 
 procedure TestTCouchDB.TestCreateDatabase;
@@ -72,6 +80,39 @@ var
 begin
   ReturnValue := FCouchDB.DeleteDatabase('database-should-not-exist');
   Assert(ReturnValue = false, 'Wrong database delation should trigger exception');
+end;
+
+procedure TestTCouchDB.TestFlushBulk;
+var
+  doc1, doc2: TCouchDBDocument;
+  hasPassed: boolean;
+  ReturnValue: TCouchDBDocument;
+begin
+  FCouchDB.useBulkInserts := true;
+  doc1 := TCouchDBDocument.CreateNew('first-document');
+  doc2 := TCouchDBDocument.CreateNew('second-document');
+
+  // expect first save to do nothing
+  hasPassed := false;
+  FCouchDB.SaveDocument<TCouchDBDocument>(doc1, 'test');
+  try
+    FCouchDB.GetDocument<TCouchDBDocument>('test', 'first-document');
+  except
+    on ECouchErrorDocNotFound do begin
+      hasPassed := true;
+    end;
+  end;
+  Assert(hasPassed = true, 'Document should not have been written to database');
+
+  // flush bulk and expect to retrieve the document
+  FCouchDB.FlushBulk;
+  ReturnValue := FCouchDB.GetDocument<TCouchDBDocument>('test', 'first-document');
+  Assert(ReturnValue._id = 'first-document', 'Invalid document saved in bulk');
+end;
+
+procedure TestTCouchDB.TestFlushBulkManyDBs;
+begin
+  Assert(true = false, 'Test missing');
 end;
 
 procedure TestTCouchDB.TestGetDocument;
