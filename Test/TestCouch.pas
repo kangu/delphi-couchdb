@@ -31,6 +31,7 @@ type
     procedure TestDeleteDatabase;
     procedure TestFlushBulk;
     procedure TestFlushBulkManyDBs;
+    procedure TestGetAllDocs;
     procedure TestGetDocument;
     procedure TestManyInsertsWithIds;
     procedure TestManyInsertsWithoutIds;
@@ -151,6 +152,22 @@ begin
   end;
 end;
 
+procedure TestTCouchDB.TestGetAllDocs;
+var
+  ReturnValue: ISuperObject;
+begin
+  // expect result to be a list of key-value pairs
+  FCouchDB.SaveDocument<TCouchDBDocument>(TCouchDBDocument.CreateNew('new-id'), 'test');
+  FCouchDB.SaveDocument<TCouchDBDocument>(TCouchDBDocument.CreateNew('another-id'), 'test');
+
+  ReturnValue := FCouchDB.GetAllDocs('test');
+  // expect return to be something
+  Assert(ReturnValue <> nil, 'All docs returned nothing');
+
+  // expect one row to be returned
+  Assert(ReturnValue.AsArray.Length = 2, 'No items returned as result');
+end;
+
 procedure TestTCouchDB.TestGetDocument;
 var
   documentId: string;
@@ -203,10 +220,12 @@ function TestTCouchDB.TestSaveDocument: string;
 var
   ReturnValue: boolean;
 begin
-  // expect empty document to be created
+  // expect empty document to be created without id
   ReturnValue := FCouchDB.SaveDocument<TCouchDBDocument>(TCouchDBDocument.CreateNew, 'test');
-
   Assert(ReturnValue = true, 'Document save failed');
+
+  ReturnValue := FCouchDB.SaveDocument<TCouchDBDocument>(TCouchDBDocument.CreateNew('with-id'), 'test');
+  Assert(ReturnValue = true, 'Document with id save failed');
 end;
 
 initialization

@@ -57,6 +57,10 @@ type
     // flushes all database queues to couch
     function FlushBulk: Boolean;
 
+    // String -> JSON
+    // retrieves list of id-key value for all documents in provided database
+    function GetAllDocs(databaseName: string): ISuperObject;
+
     // String, String -> TCouchDBDocument
     // retrieves given document id from database
     //
@@ -169,6 +173,20 @@ begin
   FbulkData.Clear;
 
   FbulkCount := 0;
+end;
+
+function TCouchDB.GetAllDocs(databaseName: string): ISuperObject;
+var
+  ctx: TSuperRttiContext;
+  serverReply: ISuperObject;
+begin
+  ctx := TSuperRttiContext.Create;
+  try
+    serverReply := MakeServerRequest(rmGet, databaseName + '/_all_docs');
+    Result := serverReply.O['rows'];
+  finally
+    ctx.Free;
+  end;
 end;
 
 function TCouchDB.GetDocument<T>(databaseName, documentId: string): T;
@@ -323,7 +341,7 @@ begin
         serverReply := MakeServerRequest(rmPost, databaseName, post.AsString);
       end else begin
         // id supplied, route to PUT
-        serverReply := MakeServerRequest(rmPut, databaseName, post.AsString);
+        serverReply := MakeServerRequest(rmPut, databaseName + '/' + doc._id, post.AsString);
       end;
 
       Result := serverReply.B['ok'];
